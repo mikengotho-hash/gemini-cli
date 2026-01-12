@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ContextManager } from './contextManager.js';
 import * as memoryDiscovery from '../utils/memoryDiscovery.js';
 import type { Config } from '../config/config.js';
-import { coreEvents, CoreEvent } from '../utils/events.js';
+import { coreEvents, CoreEvent, CoreEventEmitter } from '../utils/events.js';
 
 // Mock memoryDiscovery module
 vi.mock('../utils/memoryDiscovery.js', async (importOriginal) => {
@@ -40,11 +40,26 @@ describe('ContextManager', () => {
       getMcpClientManager: vi.fn().mockReturnValue({
         getMcpInstructions: vi.fn().mockReturnValue('MCP Instructions'),
       }),
+      getEventEmitter: vi.fn().mockReturnValue(new CoreEventEmitter()),
     } as unknown as Config;
 
     contextManager = new ContextManager(mockConfig);
     vi.clearAllMocks();
     vi.spyOn(coreEvents, 'emit');
+  });
+
+  describe('mcp-client-update', () => {
+    it('should refresh memory on mcp-client-update event', async () => {
+      const refreshSpy = vi.spyOn(contextManager, 'refresh');
+      const eventEmitter = mockConfig.getEventEmitter();
+
+      eventEmitter?.emit('mcp-client-update');
+
+      // Wait for promise resolution since the handler calls async refresh
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(refreshSpy).toHaveBeenCalled();
+    });
   });
 
   describe('refresh', () => {

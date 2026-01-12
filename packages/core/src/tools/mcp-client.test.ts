@@ -704,6 +704,72 @@ describe('mcp-client', () => {
       expect(mockedPromptRegistry.removePromptsByServer).toHaveBeenCalledOnce();
       expect(resourceRegistry.removeResourcesByServer).toHaveBeenCalledOnce();
     });
+
+    it('should retrieve instructions from the client', async () => {
+      const mockedClient = {
+        connect: vi.fn(),
+        discover: vi.fn(),
+        disconnect: vi.fn(),
+        getStatus: vi.fn(),
+        registerCapabilities: vi.fn(),
+        setRequestHandler: vi.fn(),
+        setNotificationHandler: vi.fn(),
+        getServerCapabilities: vi
+          .fn()
+          .mockReturnValue({ prompts: {}, tools: {} }),
+        listPrompts: vi.fn().mockResolvedValue({ prompts: [] }),
+        listTools: vi.fn().mockResolvedValue({
+          tools: [
+            {
+              name: 'dummyTool',
+              inputSchema: { type: 'object', properties: {} },
+            },
+          ],
+        }),
+        request: vi.fn().mockResolvedValue({}),
+        getInstructions: vi
+          .fn()
+          .mockReturnValue('You should use these tools carefully.'),
+      };
+      vi.mocked(ClientLib.Client).mockReturnValue(
+        mockedClient as unknown as ClientLib.Client,
+      );
+      vi.spyOn(SdkClientStdioLib, 'StdioClientTransport').mockReturnValue(
+        {} as SdkClientStdioLib.StdioClientTransport,
+      );
+      const mockedToolRegistry = {
+        registerTool: vi.fn(),
+        sortTools: vi.fn(),
+        getMessageBus: vi.fn().mockReturnValue(undefined),
+      } as unknown as ToolRegistry;
+      const promptRegistry = {
+        registerPrompt: vi.fn(),
+        removePromptsByServer: vi.fn(),
+      } as unknown as PromptRegistry;
+      const resourceRegistry = {
+        setResourcesForServer: vi.fn(),
+        removeResourcesByServer: vi.fn(),
+      } as unknown as ResourceRegistry;
+
+      const client = new McpClient(
+        'test-server',
+        { command: 'test-command' },
+        mockedToolRegistry,
+        promptRegistry,
+        resourceRegistry,
+        workspaceContext,
+        { sanitizationConfig: EMPTY_CONFIG } as Config,
+        false,
+      );
+
+      await client.connect();
+      // Discovery might be needed if we want to ensure we are "ready"
+      await client.discover({} as Config);
+
+      const instructions = client.getInstructions();
+      expect(instructions).toBe('You should use these tools carefully.');
+      expect(mockedClient.getInstructions).toHaveBeenCalled();
+    });
   });
 
   describe('Dynamic Tool Updates', () => {

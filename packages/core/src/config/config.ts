@@ -43,7 +43,7 @@ import {
   DEFAULT_OTLP_ENDPOINT,
   uiTelemetryService,
 } from '../telemetry/index.js';
-import { coreEvents, CoreEvent } from '../utils/events.js';
+import { CoreEvent, coreEvents } from '../utils/events.js';
 import { tokenLimit } from '../core/tokenLimits.js';
 import {
   DEFAULT_GEMINI_EMBEDDING_MODEL,
@@ -744,10 +744,19 @@ export class Config {
       this,
       this.eventEmitter,
     );
+
+    if (!this.contextManager) {
+      this.getEventEmitter()?.on('mcp-client-update', () => {
+        coreEvents.emit(CoreEvent.MemoryChanged, {
+          fileCount: this.geminiMdFileCount,
+        });
+      });
+    }
+
     const initMcpHandle = startupProfiler.start('initialize_mcp_clients');
     await Promise.all([
-      await this.mcpClientManager.startConfiguredMcpServers(),
-      await this.getExtensionLoader().start(this),
+      this.mcpClientManager.startConfiguredMcpServers(),
+      this.getExtensionLoader().start(this),
     ]);
     initMcpHandle?.end();
 
@@ -1190,7 +1199,9 @@ export class Config {
         .filter(Boolean)
         .join('\n\n');
     }
-    return this.userMemory;
+    const mcpInstructions =
+      this.getMcpClientManager()?.getMcpInstructions() || '';
+    return [this.userMemory, mcpInstructions].filter(Boolean).join('\n\n');
   }
 
   setUserMemory(newUserMemory: string): void {
@@ -1655,6 +1666,10 @@ export class Config {
 
   getUseWriteTodos(): boolean {
     return this.useWriteTodos;
+  }
+
+  getEventEmitter(): EventEmitter | undefined {
+    return this.eventEmitter;
   }
 
   getOutputFormat(): OutputFormat {

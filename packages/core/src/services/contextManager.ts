@@ -21,6 +21,10 @@ export class ContextManager {
 
   constructor(config: Config) {
     this.config = config;
+    this.config.getEventEmitter()?.on('mcp-client-update', () => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.refresh();
+    });
   }
 
   /**

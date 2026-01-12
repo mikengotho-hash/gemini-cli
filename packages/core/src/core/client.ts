@@ -45,6 +45,7 @@ import {
   NextSpeakerCheckEvent,
 } from '../telemetry/types.js';
 import { uiTelemetryService } from '../telemetry/uiTelemetry.js';
+import { CoreEvent } from '../utils/events.js';
 import type { IdeContext, File } from '../ide/types.js';
 import { handleFallback } from '../fallback/handler.js';
 import type { RoutingContext } from '../routing/routingStrategy.js';
@@ -206,6 +207,11 @@ export class GeminiClient {
   async initialize() {
     this.chat = await this.startChat();
     this.updateTelemetryTokenCount();
+
+    this.config.getEventEmitter()?.on(CoreEvent.MemoryChanged, () => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.updateSystemInstruction();
+    });
   }
 
   private getContentGeneratorOrFail(): ContentGenerator {
