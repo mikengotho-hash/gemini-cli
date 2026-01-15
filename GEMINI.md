@@ -1,19 +1,32 @@
 ## Building and running
 
-Before submitting any changes, it is crucial to validate them by running the
-full preflight check. This command will build the repository, run all tests,
-check for type errors, and lint the code.
+To validate your changes during development, it is highly recommended to use the
+optimized `ai-check` command suite. These commands are designed for speed,
+leveraging incremental builds and parallelizing linting and testing to provide
+near-instant feedback.
 
-To run the full suite of checks, execute the following command:
+- **Full Check**: `npm run ai-check` (builds everything, lints, and tests)
+- **Scoped Checks**: Use `npm run ai-check:cli` or `npm run ai-check:core` to
+  validate only specific packages and their dependencies.
+- **Incremental**: `npm run ai-check:changed` runs linting and tests only on
+  files modified since the last commit.
 
-```bash
-npm run preflight
-```
+### Verification Steps
 
-This single command ensures that your changes meet all the quality gates of the
-project. While you can run the individual steps (`build`, `test`, `typecheck`,
-`lint`) separately, it is highly recommended to use `npm run preflight` to
-ensure a comprehensive validation.
+When asked to verify your work, you MUST execute the most specific check that
+covers your changes to ensure quality while minimizing context usage and
+latency:
+
+1.  **Identify Scope**: Determine which packages (`packages/cli`,
+    `packages/core`, etc.) your changes affect.
+2.  **Execute Check**:
+    - If changes are only in `packages/cli`: `npm run ai-check:cli`
+    - If changes are only in `packages/core`: `npm run ai-check:core`
+    - If changes are small and cross-cutting: `npm run ai-check:changed`
+    - If changes are significant or architectural: `npm run ai-check`
+
+While you can run individual steps (`build`, `test`, `typecheck`, `lint`)
+separately, using `ai-check` is the preferred workflow for rapid iteration.
 
 ## Writing Tests
 

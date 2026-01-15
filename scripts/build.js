@@ -18,7 +18,7 @@
 // limitations under the License.
 
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, cpSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,9 +30,40 @@ if (!existsSync(join(root, 'node_modules'))) {
   execSync('npm install', { stdio: 'inherit', cwd: root });
 }
 
-// build all workspaces/packages
-execSync('npm run generate', { stdio: 'inherit', cwd: root });
-execSync('npm run build --workspaces', { stdio: 'inherit', cwd: root });
+console.log('Building packages...');
+execSync('npx tsc --build tsconfig.build.json', {
+  stdio: 'inherit',
+  cwd: root,
+});
+
+// Run post-build steps for each package (copying assets, etc.)
+const packages = ['core', 'cli', 'a2a-server', 'test-utils'];
+for (const pkg of packages) {
+  const pkgDir = join(root, 'packages', pkg);
+  if (existsSync(pkgDir)) {
+    execSync('node ../../scripts/copy_files.js', {
+      stdio: 'inherit',
+      cwd: pkgDir,
+    });
+
+    if (pkg === 'core') {
+      const docsSource = join(root, 'docs');
+      const docsTarget = join(pkgDir, 'dist', 'docs');
+      if (existsSync(docsSource)) {
+        cpSync(docsSource, docsTarget, { recursive: true, dereference: true });
+        console.log('Copied documentation to packages/core/dist/docs');
+      }
+    }
+    writeFileSync(join(pkgDir, 'dist', '.last_build'), '');
+  }
+}
+
+// VS Code companion is build separately as it has its own complex build process
+console.log('Building vscode-ide-companion...');
+execSync('npm run build --workspace gemini-cli-vscode-ide-companion', {
+  stdio: 'inherit',
+  cwd: root,
+});
 
 // also build container image if sandboxing is enabled
 // skip (-s) npm install + build since we did that above

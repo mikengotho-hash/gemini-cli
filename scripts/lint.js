@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import {
   mkdirSync,
   rmSync,
@@ -131,6 +131,27 @@ function runCommand(command, stdio = 'inherit') {
   } catch (_e) {
     return false;
   }
+}
+
+async function runCommandAsync(name, command) {
+  return new Promise((resolve) => {
+    console.log(`\nRunning ${name}...`);
+    const env = { ...process.env };
+    const nodeBin = join(process.cwd(), 'node_modules', '.bin');
+    env.PATH = `${nodeBin}:${TEMP_DIR}/actionlint:${TEMP_DIR}/shellcheck:${PYTHON_VENV_PATH}/bin:${env.PATH}`;
+
+    const proc = spawn('bash', ['-c', command], { stdio: 'inherit', env });
+
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`${name} failed with exit code ${code}`);
+        resolve(false);
+      } else {
+        console.log(`${name} passed!`);
+        resolve(true);
+      }
+    });
+  });
 }
 
 export function setupLinters() {
@@ -268,6 +289,7 @@ export function runSensitiveKeywordLinter() {
   if (!violationsFound) {
     console.log('No sensitive keyword violations found.');
   }
+  return !violationsFound;
 }
 
 function stripJSONComments(json) {
@@ -341,9 +363,10 @@ export function runTSConfigLinter() {
   if (hasError) {
     process.exit(1);
   }
+  return !hasError;
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
 
   if (args.includes('--setup')) {
@@ -373,13 +396,24 @@ function main() {
 
   if (args.length === 0) {
     setupLinters();
-    runESLint();
-    runActionlint();
-    runShellcheck();
-    runYamllint();
-    runPrettier();
-    runSensitiveKeywordLinter();
-    runTSConfigLinter();
+
+    const tasks = [
+      runCommandAsync('ESLint', 'npm run lint'),
+      runCommandAsync('actionlint', LINTERS.actionlint.run),
+      runCommandAsync('shellcheck', LINTERS.shellcheck.run),
+      runCommandAsync('yamllint', LINTERS.yamllint.run),
+      runCommandAsync('Prettier', 'prettier --check .'),
+      Promise.resolve().then(() => runSensitiveKeywordLinter()),
+      Promise.resolve().then(() => runTSConfigLinter()),
+    ];
+
+    const results = await Promise.all(tasks);
+
+    if (results.includes(false)) {
+      console.error('\nSome linting checks failed.');
+      process.exit(1);
+    }
+
     console.log('\nAll linting checks passed!');
   }
 }
