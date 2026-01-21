@@ -25,7 +25,7 @@ describe('analysis mode eval', () => {
 
       // Verify NO edit tools called
       const editCalls = toolLogs.filter((log) =>
-        ['replace', 'write_file'].includes(log.toolRequest.name),
+        ['replace', 'write_file', 'edit'].includes(log.toolRequest.name),
       );
       expect(editCalls.length).toBe(0);
 
@@ -49,7 +49,7 @@ describe('analysis mode eval', () => {
       // Verify edit tools WERE called
       const editCalls = toolLogs.filter(
         (log) =>
-          ['replace', 'write_file'].includes(log.toolRequest.name) &&
+          ['replace', 'write_file', 'edit'].includes(log.toolRequest.name) &&
           log.toolRequest.success,
       );
       expect(editCalls.length).toBeGreaterThanOrEqual(1);
@@ -73,7 +73,7 @@ describe('analysis mode eval', () => {
 
       // Verify NO edit tools called
       const editCalls = toolLogs.filter((log) =>
-        ['replace', 'write_file'].includes(log.toolRequest.name),
+        ['replace', 'write_file', 'edit'].includes(log.toolRequest.name),
       );
       expect(editCalls.length).toBe(0);
 
@@ -109,8 +109,8 @@ describe('analysis mode eval', () => {
       await run.sendKeys('Fix it');
       await run.type('\r');
 
-      // Wait for fix
-      await rig.expectToolCallSuccess(['replace', 'write_file']);
+      // Wait for fix (cli uses 'edit' which maps to replace/write_file in core)
+      await rig.expectToolCallSuccess(['replace', 'write_file', 'edit']);
 
       // Verify file changed
       const content = rig.readFile('app.ts');
